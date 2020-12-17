@@ -3,13 +3,14 @@
  */
 "use strict";
 const debug = require("debug")("yoke");
-const url = require("url");
-const zookeeper = require("node-zookeeper-client");
-const qs = require("querystring");
-const reg = require("./libs/register");
-const { Service } = require("./libs/service");
+const NacosNamingClient = require('nacos').NacosNamingClient;
+const {
+  Service
+} = require("./libs/service");
 const EventEmitter = require("events");
-const { print } = require("./utils");
+const {
+  print
+} = require("./utils");
 
 class Yoke extends EventEmitter {
   constructor(opt) {
@@ -31,21 +32,30 @@ class Yoke extends EventEmitter {
     this.initClient();
   }
 
-  initClient() {
-    this.client = zookeeper.createClient(this.registry, {
-      sessionTimeout: 30000,
-      spinDelay: 1000,
-      retries: 5
+  async initClient() {
+    // this.client = zookeeper.createClient(this.registry, {
+    //   sessionTimeout: 30000,
+    //   spinDelay: 1000,
+    //   retries: 5
+    // });
+
+    // this.client.connect();
+    // this.client.once("connected", this.onOnceConnected.bind(this));
+
+    const logger = console;
+    this.client = new NacosNamingClient({
+      logger,
+      ...this.registry
     });
 
-    this.client.connect();
-    this.client.once("connected", this.onOnceConnected.bind(this));
-
     this.checkConnection();
+    await this.client.ready();
+    this.onOnceConnected();
   }
 
   checkConnection() {
-    const err = `FATAL: It seems that zookeeper cannot be connected, please check registry address or try later.`;
+    const err =
+      `FATAL: It seems that nacos cannot be connected, please check registry address or try later.`;
     this.zkConnectTimeout = setTimeout(() => {
       !this.zkIsConnect && print.err(err);
       clearTimeout(this.zkConnectTimeout);
@@ -53,7 +63,7 @@ class Yoke extends EventEmitter {
   }
 
   onOnceConnected() {
-    debug("zookeeper connect successfully");
+    debug("nacos connect successfully");
     print.info("Dubbo service init done");
     this.zkIsConnect = true;
     this.retrieveServices();
@@ -62,42 +72,58 @@ class Yoke extends EventEmitter {
 
   retrieveServices() {
     for (const [key, val] of Object.entries(this.dependencies)) {
-      const path = `/${this.root}/${val.interface}/providers`;
-      this.client.getChildren(
-        path,
-        this.watchService.bind(this),
-        this.resolveService(path, key, val)
+      const {
+        interface,
+        version,
+        group,
+        groupName = 'DEFAULT_GROUP',
+        category = 'providers'
+      } = val;
+      const serviceName = `${category}:${interface}:${version}:${group}`;
+      // this.client.getChildren(
+      //   path,
+      //   this.watchService.bind(this),
+      //   this.resolveService(path, key, val)
+      // );
+      this.client.subscribe({
+          groupName,
+          serviceName
+        },
+        hosts => {
+          this.resolveService(serviceName, key, val)(null, hosts);
+        }
       );
     }
   }
 
-  watchService(event) {
-    debug(event, "watch event");
-    this.retrieveServices();
-    this.emit("service:changed", event);
-  }
+  // watchService(event) {
+  //   debug(event, "watch event");
+  //   this.retrieveServices();
+  //   this.emit("service:changed", event);
+  // }
 
-  resolveService(path, depKey, depVal) {
-    return (error, children, stat) => {
+  resolveService(serviceName, depKey, depVal) {
+    return (error, hosts, stat) => {
       if (error) {
         print.err(error);
         return;
       }
-      if (children && !children.length) {
-        const errMsg = `WARNING: Can\'t find the service: ${path}, please check!`;
+      if (hosts && !hosts.length) {
+        const errMsg =
+          `WARNING: Can\'t find the service: ${serviceName}, please check!`;
         print.warn(errMsg);
         return;
       }
-      const size = children.length;
+      const size = hosts.length;
       const providers = [];
 
       for (let i = 0; i < size; i++) {
-        const provider = url.parse(decodeURIComponent(children[i]));
-        const queryObj = qs.parse(provider.query);
+        const provider = hosts[i];
+        const metadata = provider.metadata;
         if (
-          queryObj.version === depVal.version &&
-          queryObj.group === depVal.group &&
-          provider.protocol === "dubbo:"
+          metadata.version === depVal.version &&
+          metadata.group === depVal.group &&
+          metadata.protocol === "dubbo"
         ) {
           providers.push(provider);
         }
@@ -105,7 +131,7 @@ class Yoke extends EventEmitter {
       if (!providers.length) {
         print.warn(
           `WARNING: Please check the version、 group、 protocol(must dubbo) of dependency (${depKey}),`,
-          `due to they are not matched with any provider service found in zookeeper.`
+          `due to they are not matched with any provider service found in nacos.`
         );
 
         return;
@@ -120,7 +146,7 @@ class Yoke extends EventEmitter {
   }
 
   regConsumer() {
-    reg.consumer.call(this);
+    // reg.consumer.call(this);
   }
 }
 

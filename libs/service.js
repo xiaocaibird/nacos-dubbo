@@ -1,6 +1,5 @@
 "use strict";
 
-const qs = require("querystring");
 const { Dispatcher, Socket } = require("./socket");
 const debug = require("debug")("yoke");
 const execute = Symbol("execute");
@@ -11,9 +10,9 @@ class Service {
     this.dispatcher = new Dispatcher();
     for (let i = 0, l = providers.length; i < l; i++) {
       const provider = providers[i];
-      const queryObj = qs.parse(provider.query);
-      methods = queryObj.methods.split(",");
-      this.initSockets(provider.hostname, provider.port);
+      const metadata = provider.metadata;
+      methods = metadata.methods.split(",");
+      this.initSockets(provider.ip, provider.port);
     }
     debug(`The ${dependency.interface} method list: ${methods.join(", ")}`);
     this.injectMethods(methods);

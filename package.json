@@ -1,29 +1,28 @@
 {
-  "name": "node-zookeeper-dubbo",
-  "version": "3.0.15",
-  "description": "node connect dubbo by default protocol in zookeeper",
+  "name": "node-nacos-dubbo",
+  "version": "1.0.0",
+  "description": "node connect dubbo by default protocol in nacos",
   "main": "index.js",
   "scripts": {
-    "test": "ava",
-    "debug": "DEBUG=yoke nodemon test/index.js"
+    "test": "ava"
   },
   "keywords": [
-    "zookeeper",
+    "nacos",
     "node",
     "dubbo",
     "javascript"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/p412726700/node-zookeeper-dubbo"
+    "url": "https://github.com/xiaocaibird/node-nacos-dubbo"
   },
-  "author": "pzc <412726700@qq.com>",
+  "author": "xiaocaibird",
   "license": "ISC",
   "dependencies": {
     "chalk": "^2.4.1",
     "debug": "^4.1.1",
     "hessian.js": "^2.1.8",
-    "node-zookeeper-client": "0.2.3",
+    "nacos": "^2.0.0",
     "supports-color": "^6.1.0"
   },
   "jscsConfig": {
