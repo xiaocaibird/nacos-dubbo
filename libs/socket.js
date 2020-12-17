@@ -66,6 +66,14 @@ Socket.prototype.onConnect = function() {
   }, 5000);
 };
 
+Socket.prototype.checkConnect = function() {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => reject(), 30000);
+    if (this.isConnect) resolve()
+    else this.socket.once('connect', () => { resolve(); });
+  });
+};
+
 Socket.prototype.destroy = function(msg) {
   this.isConnect = false;
   this.reject && this.reject(msg);

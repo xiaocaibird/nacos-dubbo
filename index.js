@@ -28,8 +28,6 @@ class Yoke extends EventEmitter {
       );
     }
     this.registry = opt.registry || opt.register;
-
-    this.initClient();
   }
 
   async initClient() {
@@ -50,50 +48,61 @@ class Yoke extends EventEmitter {
 
     this.checkConnection();
     await this.client.ready();
-    this.onOnceConnected();
+    await this.onOnceConnected();
   }
 
   checkConnection() {
     const err =
       `FATAL: It seems that nacos cannot be connected, please check registry address or try later.`;
     this.zkConnectTimeout = setTimeout(() => {
-      !this.zkIsConnect && print.err(err);
       clearTimeout(this.zkConnectTimeout);
-    }, 10000);
+      if (!this.zkIsConnect) {
+        print.err(err);
+        this.client.close();
+        throw new Error(err);
+      }
+    }, 20000);
   }
 
-  onOnceConnected() {
+  async onOnceConnected() {
+    await this.retrieveServices();
     debug("nacos connect successfully");
     print.info("Dubbo service init done");
     this.zkIsConnect = true;
-    this.retrieveServices();
     this.regConsumer();
   }
 
   retrieveServices() {
-    for (const [key, val] of Object.entries(this.dependencies)) {
-      const {
-        interface,
-        version,
-        group,
-        groupName = 'DEFAULT_GROUP',
-        category = 'providers'
-      } = val;
-      const serviceName = `${category}:${interface}:${version}:${group}`;
-      // this.client.getChildren(
-      //   path,
-      //   this.watchService.bind(this),
-      //   this.resolveService(path, key, val)
-      // );
-      this.client.subscribe({
-          groupName,
-          serviceName
-        },
-        hosts => {
-          this.resolveService(serviceName, key, val)(null, hosts);
+    return new Promise((resolve, reject) => {
+      for (const [key, val] of Object.entries(this.dependencies)) {
+        const {
+          interface: it,
+          version,
+          group,
+          groupName = 'DEFAULT_GROUP',
+          category = 'providers'
+        } = val;
+        const serviceName = `${category}:${it}:${version}:${group}`;
+        // this.client.getChildren(
+        //   path,
+        //   this.watchService.bind(this),
+        //   this.resolveService(path, key, val)
+        // );
+        try {
+          this.client.subscribe({
+              groupName,
+              serviceName
+            },
+            hosts => {
+              this.resolveService(serviceName, key, val)(null, hosts);
+              resolve();
+            }
+          );
+        } catch(e) {
+          reject(e)
         }
-      );
-    }
+      }
+    });
   }
 
   // watchService(event) {

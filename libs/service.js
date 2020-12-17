@@ -24,6 +24,22 @@ class Service {
       _group: dependency.group,
       _timeout: dependency.timeout
     };
+
+    this.checkReady();
+  }
+
+  checkReady() {
+    if (this.isReady) return;
+
+    return new Promise((resolve, reject) => {
+      const check = async (socket) => {
+        await socket.checkConnect();
+        this.isReady = true;
+        resolve();
+      }
+      this.dispatcher.queue.forEach(item => check(item));
+      setTimeout(() => reject(), 40000);
+    });
   }
 
   initSockets(host, port) {
@@ -36,7 +52,8 @@ class Service {
     for (let i = 0, l = methods.length; i < l; i++) {
       const method = methods[i];
 
-      this[method] = (...args) => {
+      this[method] = async (...args) => {
+        await this.checkReady();
         if (this.mdsig[method]) {
           args = this.mdsig[method](...args);
         }
