@@ -1,3 +1,3 @@
-# node-nacos-dubbo
+# nacos-dubbo
 
 refactoring from node-zookeeper-dubbo

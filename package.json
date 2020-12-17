@@ -1,5 +1,5 @@
 {
-  "name": "node-nacos-dubbo",
+  "name": "nacos-dubbo",
   "version": "1.0.0",
   "description": "node connect dubbo by default protocol in nacos",
   "main": "index.js",
@@ -14,7 +14,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/xiaocaibird/node-nacos-dubbo"
+    "url": "https://github.com/xiaocaibird/nacos-dubbo"
   },
   "author": "xiaocaibird",
   "license": "ISC",
