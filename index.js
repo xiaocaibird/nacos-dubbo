@@ -20,7 +20,7 @@ class Yoke extends EventEmitter {
     this.timeout = opt.timeout || 6000;
     this.root = opt.root || "dubbo";
     this.dependencies = opt.dependencies || {};
-    this.zkIsConnect = false;
+    this.nacosIsConnect = false;
     this.dver = opt.dubboVer;
     if (opt.register) {
       print.warn(
@@ -54,9 +54,9 @@ class Yoke extends EventEmitter {
   checkConnection() {
     const err =
       `FATAL: It seems that nacos cannot be connected, please check registry address or try later.`;
-    this.zkConnectTimeout = setTimeout(() => {
-      clearTimeout(this.zkConnectTimeout);
-      if (!this.zkIsConnect) {
+    this.nacosConnectTimeout = setTimeout(() => {
+      clearTimeout(this.nacosConnectTimeout);
+      if (!this.nacosIsConnect) {
         print.err(err);
         this.client.close();
         throw new Error(err);
@@ -68,39 +68,51 @@ class Yoke extends EventEmitter {
     await this.retrieveServices();
     debug("nacos connect successfully");
     print.info("Dubbo service init done");
-    this.zkIsConnect = true;
+    this.nacosIsConnect = true;
     this.regConsumer();
   }
 
   retrieveServices() {
-    return new Promise((resolve, reject) => {
-      for (const [key, val] of Object.entries(this.dependencies)) {
-        const {
-          interface: it,
-          version,
-          group,
-          groupName = 'DEFAULT_GROUP',
-          category = 'providers'
-        } = val;
-        const serviceName = `${category}:${it}:${version}:${group}`;
-        // this.client.getChildren(
-        //   path,
-        //   this.watchService.bind(this),
-        //   this.resolveService(path, key, val)
-        // );
-        try {
-          this.client.subscribe({
-              groupName,
-              serviceName
-            },
-            hosts => {
-              this.resolveService(serviceName, key, val)(null, hosts);
-              resolve();
-            }
-          );
-        } catch(e) {
-          reject(e)
-        }
+    return new Promise(async (resolve, reject) => {
+      try {
+        setTimeout(() => reject(new Error('retrieveServices timeout')), 200000);
+        await Promise.all(Object.entries(this.dependencies).map(
+          value => {
+            const [key, val] = value;
+            const {
+              interface: it,
+              version,
+              group,
+              groupName = 'DEFAULT_GROUP',
+              category = 'providers'
+            } = val;
+            const serviceName = `${category}:${it}:${version}:${group}`;
+            // this.client.getChildren(
+            //   path,
+            //   this.watchService.bind(this),
+            //   this.resolveService(path, key, val)
+            // );
+            return new Promise((rl, rj) => {
+              setTimeout(() => rj(new Error(`${serviceName} subscribe timeout`)), 20000);
+              try {
+                this.client.subscribe({
+                    groupName,
+                    serviceName
+                  },
+                  hosts => {
+                    this.resolveService(serviceName, key, val)(null, hosts);
+                    rl();
+                  }
+                );
+              } catch (e) {
+                rj(e)
+              }
+            });
+          }));
+
+          resolve();
+      } catch (e) {
+        reject(e);
       }
     });
   }
