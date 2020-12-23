@@ -28,6 +28,15 @@ class Yoke extends EventEmitter {
       );
     }
     this.registry = opt.registry || opt.register;
+
+    /* setInterval(async () => { 
+      try {
+        await this.initClient() 
+      } catch(e) {
+        console.error('update client fail');
+        console.error(e);
+      }
+    }, 20000); */
   }
 
   async initClient() {
@@ -49,6 +58,7 @@ class Yoke extends EventEmitter {
     this.checkConnection();
     await this.client.ready();
     await this.onOnceConnected();
+    this.client.close();
   }
 
   checkConnection() {
@@ -110,7 +120,7 @@ class Yoke extends EventEmitter {
             });
           }));
 
-          resolve();
+        resolve();
       } catch (e) {
         reject(e);
       }
