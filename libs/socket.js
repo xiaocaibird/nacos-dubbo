@@ -26,7 +26,7 @@ const Socket = function(port, host) {
 
   this.socket = net.connect(port, host);
 
-  // this.socket.setTimeout(6000);
+  this.socket.setTimeout(5000);
 
   this.socket.on("timeout", this.onTimeout.bind(this));
   this.socket.on("connect", this.onConnect.bind(this));
@@ -68,7 +68,7 @@ Socket.prototype.onConnect = function() {
 
 Socket.prototype.checkConnect = function() {
   return new Promise((resolve, reject) => {
-    setTimeout(() => reject(), 30000);
+    setTimeout(() => reject(new Error('socket connect timeout')), 5000);
     if (this.isConnect) resolve()
     else this.socket.once('connect', () => { resolve(); });
   });
@@ -82,6 +82,7 @@ Socket.prototype.destroy = function(msg) {
 };
 
 Socket.prototype.onError = function(err) {
+  this.socket.end();
   this.error = err;
 
   if (this.cb) {
@@ -110,6 +111,7 @@ Socket.prototype.onError = function(err) {
 };
 
 Socket.prototype.onData = function(data) {
+  this.socket.end();
   if (!this.chunks.length) {
     this.bl += data.readInt32BE(12);
   }
@@ -142,6 +144,15 @@ const Dispatcher = function() {
   this.queue = [];
   this.waitingTasks = [];
   this.busyQueue = [];
+  this.server = [];
+  this.serverIndex = 0;
+};
+
+Dispatcher.prototype.insertServer = function(host, port) {
+  this.server.push({
+    host,
+    port
+  });
 };
 
 Dispatcher.prototype.insert = function(socket) {
@@ -153,39 +164,52 @@ Dispatcher.prototype.remove = function(connection) {
 };
 
 Dispatcher.prototype.purgeConn = function(connection) {
-  removeConn(this.queue, connection);
-  removeConn(this.busyQueue, connection);
+  // removeConn(this.queue, connection);
+  // removeConn(this.busyQueue, connection);
 };
 
 Dispatcher.prototype.get = function(uid) {
   this.queue.get(uid);
 };
 
-Dispatcher.prototype.gain = function(cb) {
-  let socket = null;
+Dispatcher.prototype.gain = async function(cb) {
+  // let socket = null;
 
-  if (!this.queue.length && !this.busyQueue.length) {
-    return cb(new ConnectionPoolError(EXCEPTIONS.NO_AVAILABLE_WORKER));
-  }
-  if (this.queue.length) {
-    socket = this.queue.shift();
-    if (socket.isConnect === false) {
-      this.purgeConn(socket);
-      return this.gain(cb);
-    }
-    this.busyQueue.push(socket);
-    cb(null, socket);
+  // if (!this.queue.length && !this.busyQueue.length) {
+  //   return cb(new ConnectionPoolError(EXCEPTIONS.NO_AVAILABLE_WORKER));
+  // }
+  // if (this.queue.length) {
+  //   socket = this.queue.shift();
+  //   if (socket.isConnect === false) {
+  //     this.purgeConn(socket);
+  //     return this.gain(cb);
+  //   }
+  //   this.busyQueue.push(socket);
+  //   cb(null, socket);
+  // } else {
+  //   this.waitingTasks.push(cb);
+  // }
+  if (!this.server.length) throw new Error('服务未注册！');
+  let serverInfo = this.server[this.serverIndex];
+  if (!serverInfo) {
+    serverInfo = this.server[0];
+    this.serverIndex = 1;
   } else {
-    this.waitingTasks.push(cb);
+    this.serverIndex ++;
   }
+  const socket = new Socket(serverInfo.port, serverInfo.host);
+
+  await socket.checkConnect();
+
+  cb(null, socket)
 };
 
 Dispatcher.prototype.release = function(conn) {
-  removeConn(this.busyQueue, conn);
-  this.queue.push(conn);
-  if (this.waitingTasks.length) {
-    this.gain(this.waitingTasks.shift());
-  }
+  // removeConn(this.busyQueue, conn);
+  // this.queue.push(conn);
+  // if (this.waitingTasks.length) {
+  //   this.gain(this.waitingTasks.shift());
+  // }
 };
 
 function removeConn(arr, conn) {

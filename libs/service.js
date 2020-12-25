@@ -25,7 +25,7 @@ class Service {
       _timeout: dependency.timeout
     };
 
-    this.checkReady();
+    // this.checkReady();
   }
 
   checkReady() {
@@ -43,9 +43,10 @@ class Service {
   }
 
   initSockets(host, port) {
-    this.dispatcher.insert(new Socket(port, host));
-    this.dispatcher.insert(new Socket(port, host));
-    this.dispatcher.insert(new Socket(port, host));
+    this.dispatcher.insertServer(host, port);
+    // this.dispatcher.insert(new Socket(port, host));
+    // this.dispatcher.insert(new Socket(port, host));
+    // this.dispatcher.insert(new Socket(port, host));
   }
 
   injectMethods(methods) {
@@ -53,7 +54,7 @@ class Service {
       const method = methods[i];
 
       this[method] = async (...args) => {
-        await this.checkReady();
+        // await this.checkReady();
         if (this.mdsig[method]) {
           args = this.mdsig[method](...args);
         }

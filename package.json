@@ -1,6 +1,6 @@
 {
   "name": "nacos-dubbo",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "node connect dubbo by default protocol in nacos",
   "main": "index.js",
   "scripts": {
